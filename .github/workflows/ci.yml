@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: denoland/setup-deno@v1
+      with:
+        deno-version: v1.x
+
+    - run: deno fmt --check
+
+    - run: mkdir -p tmp
+    # pmim-data: pmim_sys-0.db
+    - uses: robinraju/release-downloader@v1
+      with:
+        repository: "fm-elpac/pmim-data"
+        tag: "v0.1.2"
+        fileName: "pmim_sys-0.db.zst"
+    - run: mv pmim_sys-0.db.zst tmp/
+    - run: cd tmp && zstd -d pmim_sys-0.db.zst
+    - run: cd tmp && mv pmim_sys-0.db pmim_sys.db
+
+    - run: git clone --single-branch --depth=1 https://github.com/studyzy/imewlconverter
+
+    - run: cat imewlconverter/参考/8万精准超小词库.txt | iconv -f utf-16 -t utf-8 > 9.txt
+    - run: deno run -A --unstable-kv tool/gen_db_sys_dict.js tmp/pmim_sys.db 9.txt
+
+    # `pmim_sys.db`
+    - uses: actions/upload-artifact@v4
+      with:
+        name: pmim_sys.db
+        path: tmp/pmim_sys.db
